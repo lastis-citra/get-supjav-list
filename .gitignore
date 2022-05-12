@@ -1,0 +1,6 @@
+/.idea/
+/venv/
+/output/
+*.html
+last_url_*
+detail_ids.txt
