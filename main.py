@@ -12,7 +12,7 @@ def write_html(file1, str1):
     return 0
 
 
-def output_result(html, site_name):
+def output_result(html):
     # 結果が0件だった場合は出力しない
     if html == '':
         return
@@ -56,8 +56,20 @@ def output_result(html, site_name):
     output_dir = os.path.dirname(__file__) + '/output/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    file1 = f'{output_dir}output_{site_name}_{now.strftime("%Y%m%d%H%M%S")}.html'
+    file1 = f'{output_dir}output_{now.strftime("%Y%m%d%H%M%S")}.html'
     write_html(file1, html)
+
+
+def input_urls():
+    path = f'input_urls.txt'
+    input_dict = {}
+    if os.path.exists(path):
+        with open(path, 'r', errors='replace', encoding="utf_8") as file:
+            line_list = file.read().splitlines()
+            input_dict[line_list[0]] = line_list[1]
+        return input_dict
+    else:
+        return {}
 
 
 def input_last_url(site_name):
@@ -82,7 +94,7 @@ def input_detail_ids():
     if os.path.exists(path):
         with open(path, 'r', errors='replace', encoding="utf_8") as file:
             line_list = file.read().splitlines()
-        print(f"detail_ids: {','.join(line_list)}")
+        # print(f"detail_ids: {','.join(line_list)}")
         return line_list
     else:
         return []
@@ -164,17 +176,23 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url):
     return html, first_url, detail_ids
 
 
-def main_process(url, site_name):
-    last_url = input_last_url(site_name)
+def main_process():
+    input_dict = input_urls()
+    html = ''
     detail_ids = input_detail_ids()
-    html, first_url, detail_ids = get_search_result(0, '', last_url, '', detail_ids, url)
-    output_result(html, site_name)
-    print(f"detail_ids: {','.join(detail_ids)}")
+    first_url_dict = {}
+
+    for site_name, site_url in input_dict.items():
+        last_url = input_last_url(site_name)
+        html, first_url, detail_ids = get_search_result(0, '', last_url, html, detail_ids, site_url)
+        first_url_dict[site_name] = first_url
+
+    output_result(html)
     output_detail_ids(detail_ids)
-    output_first_url(first_url, site_name)
+
+    for site_name, first_url in first_url_dict.items():
+        output_first_url(first_url, site_name)
 
 
 if __name__ == '__main__':
-    input_url = 'https://supjav.com/ja/?s=FC2PPV'
-    _site_name = 'FC2PPV'
-    main_process(input_url, _site_name)
+    main_process()
