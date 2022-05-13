@@ -66,7 +66,10 @@ def input_urls():
     if os.path.exists(path):
         with open(path, 'r', errors='replace', encoding="utf_8") as file:
             line_list = file.read().splitlines()
-            input_dict[line_list[0]] = line_list[1]
+            for line in line_list:
+                site_name = line.split(',')[0]
+                site_url = line.split(',')[1]
+                input_dict[site_name] = site_url
         return input_dict
     else:
         return {}
