@@ -165,6 +165,9 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url):
         # aタグのテキストを短くする
         a_text = post_tag.select_one('div.con a').text
         a_text = re.sub(r'FC2PPV\s\d+\s', '', a_text)
+        # [有]が含まれる場合は先頭に持ってくるように
+        if '[有]' in a_text:
+            a_text = '[有]' + a_text.replace('[有]', '')
         # print('a_text: ' + a_text)
         post_tag.select_one('div.con a').string.replace_with(a_text)
 
