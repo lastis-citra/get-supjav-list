@@ -125,7 +125,7 @@ def get_next_page(soup):
 
 # 検索結果ページを取得する
 def get_search_result(count, first_url, last_url, html, detail_ids, url):
-    print(f'input_url: {url}')
+    print(f'input_url: {url} ', end='')
     last_check = False
 
     scraper = cloudscraper.create_scraper(
@@ -139,6 +139,7 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url):
     res.encoding = res.apparent_encoding
     soup = BeautifulSoup(res.text, 'html.parser')
     post_tags = soup.select('div.post')
+    num = 0
 
     for post_tag in post_tags:
         # 取得済みのURLのIDを記録する
@@ -171,8 +172,10 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url):
         # print('a_text: ' + a_text)
         post_tag.select_one('div.con a').string.replace_with(a_text)
 
+        num += 1
         html += str(post_tag)
 
+    print(str(num))
     next_url = get_next_page(soup)
 
     # 次のページが存在するなら，再帰的に実行
