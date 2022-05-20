@@ -4,4 +4,4 @@
 *.html
 last_url_*
 detail_ids.txt
-input_urls.txt
+input_urls*
