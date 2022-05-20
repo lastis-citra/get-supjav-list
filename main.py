@@ -141,8 +141,8 @@ def get_fc2_data(fc2_id):
         }
     )
     res = scraper.get(url)
-    res.encoding = res.apparent_encoding
-    soup = BeautifulSoup(res.text, 'html.parser')
+    # res.encoding = res.apparent_encoding
+    soup = BeautifulSoup(res.content, 'html.parser')
     description = soup.select_one('meta[name="description"]')['content']
     # 特に古いIDだと製品ページにたどり着けないため
     if 'Unable' in description:
@@ -167,8 +167,8 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url, debug):
         }
     )
     res = scraper.get(url)
-    res.encoding = res.apparent_encoding
-    soup = BeautifulSoup(res.text, 'html.parser')
+    # res.encoding = res.apparent_encoding
+    soup = BeautifulSoup(res.content, 'html.parser')
     post_tags = soup.select('div.post')
     num = 0
 
