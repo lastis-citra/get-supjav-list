@@ -87,6 +87,16 @@ def input_last_url(site_name, debug):
         return ''
 
 
+def get_ng_words():
+    file_name = 'ngwords.txt'
+    if os.path.exists(file_name):
+        with open(file_name, 'r', errors='replace', encoding="utf_8") as file:
+            line_list = file.read().splitlines()
+    line_tuple = tuple(line_list)
+
+    return line_tuple
+
+
 def output_first_url(url, site_name, debug):
     if debug:
         return 0
@@ -155,7 +165,7 @@ def get_fc2_data(fc2_id):
 
 
 # 検索結果ページを取得する
-def get_search_result(count, first_url, last_url, html, detail_ids, url, debug):
+def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_words, debug):
     print(f'input_url: {url} ', end='')
     last_check = False
 
@@ -203,6 +213,9 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url, debug):
             keywords = get_fc2_data(fc2_ids[0])
             if keywords != '':
                 user = ' (By ' + keywords.split(',')[0] + ') '
+        # NGワード設定
+        if any(map(keywords.__contains__, ng_words)):
+            continue
         # aタグのテキストを短くする
         a_text = re.sub(r'FC2PPV\s\d+\s', '', a_text)
         # userを付加する
@@ -223,7 +236,7 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url, debug):
 
     # 次のページが存在するなら，再帰的に実行
     if next_url is not None and not last_check and not debug and count <= 1:
-        html, _, detail_ids = get_search_result(count + 1, first_url, last_url, html, detail_ids, next_url, debug)
+        html, _, detail_ids = get_search_result(count + 1, first_url, last_url, html, detail_ids, next_url, ng_words, debug)
 
     return html, first_url, detail_ids
 
@@ -233,10 +246,11 @@ def main_process(debug):
     html = ''
     detail_ids = input_detail_ids(debug)
     first_url_dict = {}
+    ng_words = get_ng_words()
 
     for site_name, site_url in input_dict.items():
         last_url = input_last_url(site_name, debug)
-        html, first_url, detail_ids = get_search_result(0, '', last_url, html, detail_ids, site_url, debug)
+        html, first_url, detail_ids = get_search_result(0, '', last_url, html, detail_ids, site_url, ng_words, debug)
         first_url_dict[site_name] = first_url
 
     output_result(html)
