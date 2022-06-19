@@ -213,6 +213,7 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_word
             keywords = get_fc2_data(fc2_ids[0])
             if keywords != '':
                 user = ' (By ' + keywords.split(',')[0] + ') '
+        print('*', end='')
         # NGワード設定
         if any(map(keywords.__contains__, ng_words)):
             continue
