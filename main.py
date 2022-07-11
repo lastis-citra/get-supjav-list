@@ -82,7 +82,10 @@ def input_last_url(site_name, debug):
     if os.path.exists(path) and not debug:
         with open(path, 'r', errors='replace', encoding="utf_8") as file:
             line_list = file.read().splitlines()
-        return line_list[0]
+        if len(line_list) > 0:
+            return line_list[0]
+        else:
+            return ''
     else:
         return ''
 
@@ -258,7 +261,8 @@ def main_process(debug):
     output_detail_ids(detail_ids, debug)
 
     for site_name, first_url in first_url_dict.items():
-        output_first_url(first_url, site_name, debug)
+        if first_url != '':
+            output_first_url(first_url, site_name, debug)
 
 
 if __name__ == '__main__':
