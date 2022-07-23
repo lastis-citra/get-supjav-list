@@ -50,7 +50,7 @@ def output_result(html):
     html = html_header + str(html) + html_footer
     soup = BeautifulSoup(html, 'html.parser')
     html = str(soup.prettify())
-    print(html)
+    # print(html)
 
     now = datetime.datetime.now()
     output_dir = os.path.dirname(__file__) + '/output/'
