@@ -1,10 +1,8 @@
-import requests
 import datetime
 import os
 import re
 from bs4 import BeautifulSoup
 import cloudscraper
-
 
 def write_html(file1, str1):
     with open(file1, 'w', encoding='utf-8') as f1:
@@ -169,19 +167,30 @@ def get_fc2_data(fc2_id):
 
 # 検索結果ページを取得する
 def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_words, debug):
-    print(f'input_url: {url} ', end='')
+    # print(f'input_url: {url} ', end='')
+    print(f'Please open {url} and paste the source code.')
     last_check = False
 
-    scraper = cloudscraper.create_scraper(
-        browser={
-            'browser': 'chrome',
-            'platform': 'windows',
-            'desktop': True
-        }
-    )
-    res = scraper.get(url)
+    # scraper = cloudscraper.create_scraper(
+    #     browser={
+    #         'browser': 'chrome',
+    #         'platform': 'windows',
+    #         'desktop': True
+    #     }
+    # )
+    # res = scraper.get(url)
     # res.encoding = res.apparent_encoding
-    soup = BeautifulSoup(res.content, 'html.parser')
+    source = ''
+    while True:
+        input_line = input()
+        source += input_line
+        if input_line == '</html>':
+            print('FINISH')
+            break
+    # print(source)
+
+    soup = BeautifulSoup(source, 'html.parser')
+    # print(soup)
     post_tags = soup.select('div.post')
     num = 0
 
