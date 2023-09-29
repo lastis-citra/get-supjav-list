@@ -168,6 +168,7 @@ def get_fc2_data(fc2_id):
 # 検索結果ページを取得する
 def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_words, debug):
     # print(f'input_url: {url} ', end='')
+
     print(f'Please open {url} and paste the source code.')
     last_check = False
 
@@ -184,7 +185,7 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_word
     while True:
         input_line = input()
         source += input_line
-        if input_line == '</html>':
+        if input_line == '</html>': 
             print('FINISH')
             break
     # print(source)
@@ -227,7 +228,7 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_word
                 user = ' (By ' + keywords.split(',')[0] + ') '
         print('*', end='')
         # NGワード設定
-        if any(map(keywords.__contains__, ng_words)):
+        if any(map(keywords.__contains__, ng_words)) or any(map(a_text.__contains__, ng_words)):
             continue
         # aタグのテキストを短くする
         a_text = re.sub(r'FC2PPV\s\d+\s', '', a_text)
