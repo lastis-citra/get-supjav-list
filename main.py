@@ -59,7 +59,7 @@ def output_result(html):
 
 
 def input_urls(debug):
-    path = f'input_urls.txt'
+    path = f'input_urls.conf'
     input_dict = {}
     if debug:
         return {'FC2PPV_test': 'https://supjav.com/ja/?s=FC2PPV'}
@@ -67,6 +67,8 @@ def input_urls(debug):
         with open(path, 'r', errors='replace', encoding="utf_8") as file:
             line_list = file.read().splitlines()
             for line in line_list:
+                if line.startswith('#') or line.startswith(';'):
+                    continue
                 site_name = line.split(',')[0]
                 site_url = line.split(',')[1]
                 input_dict[site_name] = site_url
