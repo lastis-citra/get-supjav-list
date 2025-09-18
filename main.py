@@ -144,7 +144,7 @@ def get_next_page(soup):
 
 # FC2のHPから情報を取り出す
 def get_fc2_data(fc2_id):
-    url = f'https://adult.contents.fc2.com/article/{fc2_id}/'
+    url = f'https://ads.contents.fc2.com/article/{fc2_id}/'
     # print(f'fc2_url: {url} ', end='')
     scraper = cloudscraper.create_scraper(
         browser={
