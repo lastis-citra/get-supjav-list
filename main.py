@@ -154,7 +154,8 @@ def get_fc2_data(fc2_id):
         }
     )
     res = scraper.get(url)
-    # res.encoding = res.apparent_encoding
+    res.encoding = res.apparent_encoding
+    # print(res.text)
     soup = BeautifulSoup(res.content, 'html.parser')
     try:
         description = soup.select_one('meta[name="description"]')['content']
@@ -164,10 +165,13 @@ def get_fc2_data(fc2_id):
     if 'Unable' in description:
         return ''
     try:
-        keywords = soup.select_one('meta[name="keywords"]')['content']
+        account = soup.select_one('img[data-image="accountIcon"]')['title']
+        keywords = account + ','
+        keyword_list = soup.select('a[class="tag tagTag"]')
+        for keyword in keyword_list:
+            keywords += keyword.get('data-tag') + ','
     except TypeError as e:
         return ''
-    keywords = keywords.split(',Videos')[0]
 
     # print(keywords)
     return keywords
