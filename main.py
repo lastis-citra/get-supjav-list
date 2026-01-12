@@ -260,8 +260,14 @@ def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_word
     print(str(num))
     next_url = get_next_page(soup)
 
+    print('next_url: ' + next_url)
+    print('last_check: ' + str(last_check))
+    print('debug: ' + str(debug))
+    print('num: ' + str(num))
+    print('count: ' + str(count))
+
     # 次のページが存在するなら，再帰的に実行
-    if next_url is not None and not last_check and not debug and num < 1 and count <= 5:
+    if next_url is not None and not last_check and not debug and num > 1 and count <= 5:
         html, _, detail_ids = get_search_result(count + 1, first_url, last_url, html, detail_ids, next_url, ng_words, debug)
 
     return html, first_url, detail_ids
