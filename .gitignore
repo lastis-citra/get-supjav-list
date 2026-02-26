@@ -6,3 +6,4 @@ last_url_*
 detail_ids.txt
 input_urls.conf
 ngwords.txt
+*.egg-info

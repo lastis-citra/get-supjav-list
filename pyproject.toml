@@ -1,0 +1,12 @@
+[project]
+name = "get-supjav-list"
+requires-python = ">=3.14"
+dynamic = ["version"]
+dependencies = [
+    "requests",
+    "beautifulsoup4",
+    "cloudscraper",
+]
+
+[tool.setuptools]
+py-modules = []
