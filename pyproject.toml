@@ -6,6 +6,8 @@ dependencies = [
     "requests",
     "beautifulsoup4",
     "cloudscraper",
+    "selenium",
+    "webdriver-manager",
 ]
 
 [tool.setuptools]

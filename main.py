@@ -1,8 +1,15 @@
 import datetime
 import os
 import re
+import time
 from bs4 import BeautifulSoup
 import cloudscraper
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
 
 def write_html(file1, str1):
     with open(file1, 'w', encoding='utf-8') as f1:
@@ -177,30 +184,49 @@ def get_fc2_data(fc2_id):
     return keywords
 
 
+def get_page_source(url, timeout=30):
+    options = Options()
+    options.add_argument('--headless=new')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
+    options.add_experimental_option('excludeSwitches', ['enable-automation'])
+    options.add_experimental_option('useAutomationExtension', False)
+
+    driver = None
+    try:
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver.set_page_load_timeout(timeout)
+        driver.get(url)
+        driver.implicitly_wait(5)
+        for _ in range(3):
+            try:
+                driver.find_element(By.CSS_SELECTOR, 'div.post')
+                break
+            except Exception:
+                time.sleep(1)
+        return driver.page_source
+    except (TimeoutException, WebDriverException) as exc:
+        print(f'Failed to load {url}: {exc}')
+        return ''
+    finally:
+        if driver is not None:
+            driver.quit()
+
+
 # 検索結果ページを取得する
 def get_search_result(count, first_url, last_url, html, detail_ids, url, ng_words, debug):
     # print(f'input_url: {url} ', end='')
 
-    print(f'Please open {url} and paste the source code.')
+    print(f'Loading {url} via Selenium...')
     last_check = False
 
-    # scraper = cloudscraper.create_scraper(
-    #     browser={
-    #         'browser': 'chrome',
-    #         'platform': 'windows',
-    #         'desktop': True
-    #     }
-    # )
-    # res = scraper.get(url)
-    # res.encoding = res.apparent_encoding
-    source = ''
-    while True:
-        input_line = input()
-        source += input_line
-        if input_line == '</html>': 
-            print('FINISH')
-            break
-    # print(source)
+    source = get_page_source(url)
+    if source == '':
+        print('Could not retrieve page source; skipping this URL.')
+        return html, first_url, detail_ids
 
     soup = BeautifulSoup(source, 'html.parser')
     # print(soup)
