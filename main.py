@@ -2,14 +2,22 @@ import datetime
 import os
 import re
 import time
+from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
-import cloudscraper
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import (
+    TimeoutException,
+    UnexpectedAlertPresentException,
+    WebDriverException,
+)
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
+
+fc2_driver = None
+
 
 def write_html(file1, str1):
     with open(file1, 'w', encoding='utf-8') as f1:
@@ -150,38 +158,119 @@ def get_next_page(soup):
 
 
 # FC2のHPから情報を取り出す
+def create_fc2_driver(headless):
+    options = Options()
+    if headless:
+        options.add_argument('--headless=new')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
+    options.add_experimental_option('excludeSwitches', ['enable-automation'])
+    options.add_experimental_option('useAutomationExtension', False)
+    profile_dir = os.path.join(os.path.dirname(__file__), 'driver', 'fc2_profile')
+    os.makedirs(profile_dir, exist_ok=True)
+    options.add_argument(f'--user-data-dir={profile_dir}')
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver.set_page_load_timeout(30)
+    return driver
+
+
+def is_fc2_login_page(driver):
+    try:
+        current_url = driver.current_url
+    except UnexpectedAlertPresentException:
+        driver.switch_to.alert.accept()
+        return True
+
+    parsed_url = urlparse(current_url)
+    hostname = parsed_url.hostname or ''
+    query = parse_qs(parsed_url.query)
+    return hostname.endswith('fc2.com') and (
+        'login' in parsed_url.path.lower() or query.get('mode') == ['login']
+    )
+
+
+def get_fc2_page_source(url):
+    global fc2_driver
+
+    if fc2_driver is None:
+        fc2_driver = create_fc2_driver(headless=True)
+
+    try:
+        fc2_driver.get(url)
+    except (TimeoutException, WebDriverException) as exc:
+        print(f'Failed to load FC2 page {url}: {exc}')
+        return ''
+
+    if is_fc2_login_page(fc2_driver):
+        fc2_driver.quit()
+        fc2_driver = create_fc2_driver(headless=False)
+        try:
+            fc2_driver.get(url)
+        except (TimeoutException, WebDriverException) as exc:
+            print(f'Failed to open FC2 login page for {url}: {exc}')
+            return ''
+
+        if is_fc2_login_page(fc2_driver):
+            print('FC2 login required. Complete login in the opened Chrome window; waiting up to 5 minutes.')
+            try:
+                WebDriverWait(fc2_driver, 300).until(lambda driver: not is_fc2_login_page(driver))
+            except TimeoutException:
+                print('FC2 login timed out. No FC2 data was retrieved.')
+                return ''
+
+        fc2_driver.quit()
+        fc2_driver = create_fc2_driver(headless=True)
+        print('FC2 login complete. Continuing in headless mode.')
+
+        try:
+            fc2_driver.get(url)
+        except (TimeoutException, WebDriverException) as exc:
+            print(f'Failed to load FC2 page {url} after login: {exc}')
+            return ''
+
+    return fc2_driver.page_source
+
+
 def get_fc2_data(fc2_id):
     url = f'https://ads.contents.fc2.com/article/{fc2_id}/'
-    # print(f'fc2_url: {url} ', end='')
-    scraper = cloudscraper.create_scraper(
-        browser={
-            'browser': 'chrome',
-            'platform': 'windows',
-            'desktop': True
-        }
-    )
-    res = scraper.get(url)
-    res.encoding = res.apparent_encoding
-    # print(res.text)
-    soup = BeautifulSoup(res.content, 'html.parser')
-    try:
-        description = soup.select_one('meta[name="description"]')['content']
-    except TypeError as e:
+    source = get_fc2_page_source(url)
+    if source == '':
         return ''
+
+    soup = BeautifulSoup(source, 'html.parser')
+    description_tag = soup.select_one('meta[name="description"]')
+    if description_tag is None:
+        print(f'FC2 description not found for {fc2_id}; verify that login succeeded.')
+        return ''
+    description = description_tag.get('content', '')
     # 特に古いIDだと製品ページにたどり着けないため
     if 'Unable' in description:
         return ''
-    try:
-        account = soup.select_one('img[data-image="accountIcon"]')['title']
-        keywords = account + ','
-        keyword_list = soup.select('a[class="tag tagTag"]')
-        for keyword in keyword_list:
-            keywords += keyword.get('data-tag') + ','
-    except TypeError as e:
+    account_tag = soup.select_one('img[data-image="accountIcon"]')
+    keyword_list = soup.select('a[class="tag tagTag"]')
+    if account_tag is None or account_tag.get('title') is None or any(
+        keyword.get('data-tag') is None for keyword in keyword_list
+    ):
+        print(f'FC2 account or tags not found for {fc2_id}; verify that login succeeded.')
         return ''
+
+    keywords = account_tag['title'] + ','
+    for keyword in keyword_list:
+        keywords += keyword['data-tag'] + ','
 
     # print(keywords)
     return keywords
+
+
+def close_fc2_driver():
+    global fc2_driver
+    if fc2_driver is not None:
+        fc2_driver.quit()
+        fc2_driver = None
 
 
 def get_page_source(url, timeout=30):
@@ -307,17 +396,20 @@ def main_process(debug):
     first_url_dict = {}
     ng_words = get_ng_words()
 
-    for site_name, site_url in input_dict.items():
-        last_url = input_last_url(site_name, debug)
-        html, first_url, detail_ids = get_search_result(0, '', last_url, html, detail_ids, site_url, ng_words, debug)
-        first_url_dict[site_name] = first_url
+    try:
+        for site_name, site_url in input_dict.items():
+            last_url = input_last_url(site_name, debug)
+            html, first_url, detail_ids = get_search_result(0, '', last_url, html, detail_ids, site_url, ng_words, debug)
+            first_url_dict[site_name] = first_url
 
-    output_result(html)
-    output_detail_ids(detail_ids, debug)
+        output_result(html)
+        output_detail_ids(detail_ids, debug)
 
-    for site_name, first_url in first_url_dict.items():
-        if first_url != '':
-            output_first_url(first_url, site_name, debug)
+        for site_name, first_url in first_url_dict.items():
+            if first_url != '':
+                output_first_url(first_url, site_name, debug)
+    finally:
+        close_fc2_driver()
 
 
 if __name__ == '__main__':

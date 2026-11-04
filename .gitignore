@@ -1,4 +1,5 @@
 /output/
+driver/fc2_profile/
 *.html
 last_url_*
 detail_ids.txt
