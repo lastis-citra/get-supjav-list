@@ -17,6 +17,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
 fc2_driver = None
+fc2_login_attempted = False
+fc2_auth_failed = False
 
 
 def write_html(file1, str1):
@@ -193,11 +195,60 @@ def is_fc2_login_page(driver):
     )
 
 
+def get_fc2_cookies(driver):
+    cookies = driver.execute_cdp_cmd('Network.getAllCookies', {})['cookies']
+    return [
+        cookie for cookie in cookies
+        if cookie.get('domain', '').lstrip('.') == 'fc2.com'
+        or cookie.get('domain', '').lstrip('.').endswith('.fc2.com')
+    ]
+
+
+def restore_fc2_cookies(driver, cookies):
+    cookie_keys = {
+        'name', 'value', 'domain', 'path', 'secure', 'httpOnly', 'sameSite',
+        'expires', 'priority', 'sameParty', 'sourceScheme', 'sourcePort',
+        'partitionKey',
+    }
+    restored_count = 0
+    for cookie in cookies:
+        cookie_domain = cookie.get('domain', '').lstrip('.')
+        if cookie_domain != 'fc2.com' and not cookie_domain.endswith('.fc2.com'):
+            continue
+
+        expires = cookie.get('expires', 0)
+        if expires > 0 and expires <= time.time():
+            continue
+        cookie_params = {
+            key: value for key, value in cookie.items()
+            if key in cookie_keys
+        }
+        if expires <= 0:
+            cookie_params.pop('expires', None)
+        if cookie_params.get('sameSite') not in {'Strict', 'Lax', 'None'}:
+            cookie_params.pop('sameSite', None)
+
+        result = driver.execute_cdp_cmd('Network.setCookie', cookie_params)
+        if not result.get('success'):
+            raise WebDriverException(
+                f"Failed to restore FC2 cookie {cookie.get('name')} for {cookie.get('domain')}."
+            )
+        restored_count += 1
+
+    if restored_count == 0:
+        raise WebDriverException('No valid FC2 login cookies were available to restore.')
+
+
 def get_fc2_page_source(url):
     global fc2_driver
+    global fc2_login_attempted
+    global fc2_auth_failed
 
     if fc2_driver is None:
         fc2_driver = create_fc2_driver(headless=True)
+
+    if fc2_auth_failed:
+        return ''
 
     try:
         fc2_driver.get(url)
@@ -206,7 +257,14 @@ def get_fc2_page_source(url):
         return ''
 
     if is_fc2_login_page(fc2_driver):
+        if fc2_login_attempted:
+            print('FC2 login is still required in headless mode; not reopening the login browser.')
+            fc2_auth_failed = True
+            return ''
+
+        fc2_login_attempted = True
         fc2_driver.quit()
+        fc2_driver = None
         fc2_driver = create_fc2_driver(headless=False)
         try:
             fc2_driver.get(url)
@@ -222,14 +280,42 @@ def get_fc2_page_source(url):
                 print('FC2 login timed out. No FC2 data was retrieved.')
                 return ''
 
+        try:
+            fc2_driver.get(url)
+        except (TimeoutException, WebDriverException) as exc:
+            print(f'Failed to verify FC2 login for {url}: {exc}')
+            return ''
+        if is_fc2_login_page(fc2_driver):
+            print('FC2 login was not accepted. No FC2 data was retrieved.')
+            fc2_auth_failed = True
+            return ''
+
+        try:
+            cookies = get_fc2_cookies(fc2_driver)
+        except WebDriverException as exc:
+            print(f'Failed to read FC2 login cookies: {exc}')
+            fc2_auth_failed = True
+            return ''
+
         fc2_driver.quit()
+        fc2_driver = None
         fc2_driver = create_fc2_driver(headless=True)
+        try:
+            restore_fc2_cookies(fc2_driver, cookies)
+        except WebDriverException as exc:
+            print(f'Failed to restore FC2 login cookies in headless Chrome: {exc}')
+            fc2_auth_failed = True
+            return ''
         print('FC2 login complete. Continuing in headless mode.')
 
         try:
             fc2_driver.get(url)
         except (TimeoutException, WebDriverException) as exc:
             print(f'Failed to load FC2 page {url} after login: {exc}')
+            return ''
+        if is_fc2_login_page(fc2_driver):
+            print('FC2 login was not retained in headless mode. No further FC2 data will be requested this run.')
+            fc2_auth_failed = True
             return ''
 
     return fc2_driver.page_source
@@ -268,9 +354,13 @@ def get_fc2_data(fc2_id):
 
 def close_fc2_driver():
     global fc2_driver
+    global fc2_login_attempted
+    global fc2_auth_failed
     if fc2_driver is not None:
         fc2_driver.quit()
         fc2_driver = None
+    fc2_login_attempted = False
+    fc2_auth_failed = False
 
 
 def get_page_source(url, timeout=30):
